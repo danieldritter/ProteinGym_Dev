@@ -1,0 +1,5 @@
+{
+   "model_checkpoint":"/home/danieldritter/proteingym_models/ESM2/esm2_t12_35M_UR50D.pt",
+   "scoring_strategy":"pseudo-ppl",
+   "scoring_window":"optimal"
+}

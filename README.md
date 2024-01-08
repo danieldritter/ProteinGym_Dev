@@ -1,0 +1,1 @@
+Rewrite of ProteinGym library to add additional functionality
