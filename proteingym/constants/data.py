@@ -1,7 +1,9 @@
 """
 constant values used throughout package
 """
-AA_INTEGER_MAP = {aa: i for i, aa in enumerate("ACDEFGHIKLMNPQRSTVWYXB-")}
+AA_INTEGER_MAP = {aa: i for i, aa in enumerate("ACDEFGHIKLMNPQRSTVWYXB")}
 GAP_CHARACTER = "-"
-AA_COMPLETE_INTEGER_MAP = {aa: i for i, aa in enumerate(
-    "ACDEFGHIKLMNPQRSTVWYXB-."+"ACDEFGHIKLMNPQRSTVWYXB".lower())}
+AA_INTEGER_MAP_ALL = {aa: i for i, aa in enumerate(
+    "ACDEFGHIKLMNPQRSTVWYXB"+"ACDEFGHIKLMNPQRSTVWYXB".lower())}
+AA_ALPHABET_UPPER = "ACDEFGHIKLMNPQRSTVWYXB"
+AA_ALPHABET_ALL = "ACDEFGHIKLMNPQRSTVWYXB" + "ACDEFGHIKLMNPQRSTVWYXB".lower()

@@ -17,8 +17,6 @@ if __name__ == "__main__":
     parser.add_argument("--experiment_index", type=int)
     parser.add_argument("--model_configs", type=str,
                         nargs="+", help="list of model configs")
-    parser.add_argument("--model_types", type=str,
-                        nargs="+", help="types for each model to use")
     args = parser.parse_args()
 
     ref_df = pd.read_csv(args.reference_file)
@@ -30,17 +28,16 @@ if __name__ == "__main__":
     # also uses the filenames of the config files as unique model names
     configs = []
     model_names = []
-    for i, name in enumerate(args.model_types):
-        configs.append(json.load(open(args.model_configs[i])))
-        model_names = os.path.splitext(
-            os.path.basename(args.model_configs[i]))[0]
+    for config in args.model_config:
+        configs.append(json.load(open(config)))
+        # model names are just identifiers for the individual models, defaults to name of the config file 
+        model_names = os.path.splitext(os.path.basename(config))[0]
     if args.alignment_folder is None:
         alignment_file = None
     else:
         alignment_file = args.alignment_folder + os.sep + \
             ref_df["MSA_filename"][args.experiment_index]
-    model = SequenceFitnessModelEnsemble(
-        model_types=args.model_types, model_configs=configs, alignment_file=alignment_file)
+    model = SequenceFitnessModelEnsemble(model_configs=configs, alignment_file=alignment_file, model_names=model_names)
 
     mutations = get_mutations(mut_file, str(
         ref_df["target_seq"][args.experiment_index]))

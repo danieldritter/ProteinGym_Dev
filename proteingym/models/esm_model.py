@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import math
 from typing import List, Union
-from proteingym.wrappers.protein_language_model import ProteinLanguageModel
+from proteingym.wrappers.generic_models import ProteinLanguageModel
 from proteingym.utils.scoring_utils import get_optimal_window
 from proteingym.models.model_repos import esm
 from tqdm import tqdm
@@ -10,11 +10,12 @@ from tqdm import tqdm
 
 @ProteinLanguageModel.register("esm_model")
 class ESMModel(ProteinLanguageModel):
-    def __init__(self, model_checkpoint: str, scoring_strategy: str = "wt-marginals",
-                 scoring_window: str = "overlapping", eval_mode: bool = True, nogpu: bool = False):
-        super().__init__(model_checkpoint=model_checkpoint, eval_mode=eval_mode, nogpu=nogpu)
+    def __init__(self, scoring_strategy: str = "wt-marginals",
+                 scoring_window: str = "overlapping", **kwargs):
+        kwargs_parsed = self.parse_config(kwargs)
+        super().__init__(**kwargs_parsed)
         self.model, self.alphabet = esm.pretrained.load_model_and_alphabet(
-            model_checkpoint)
+            self.model_checkpoint)
         self.batch_converter = self.alphabet.get_batch_converter()
         self.scoring_strategy = scoring_strategy
         self.scoring_window = scoring_window
@@ -52,12 +53,11 @@ class ESMModel(ProteinLanguageModel):
     def wt_marginals(self, batch_tokens: torch.Tensor) -> torch.Tensor:
         """Compute the scores for a wildtype sequence, used later to compute mutant scores
 
-        :param batch_tokens: tokens representing wild type sequence
-        :type batch_tokens: torch.Tensor
-        :param alphabet: model-specific alphabet used to convert wt sequence to batch_tokens 
-        :type alphabet: esm.Alphabet
-        :return: the token probabilities for the wild type sequence
-        :rtype: torch.Tensor
+        Args:
+            batch_tokens (torch.Tensor): tensor of shape (1, seq_len) representing the tokenized wild type sequence
+
+        Returns:
+            token_probs (torch.Tensor): tensor of shape (1, seq_len, vocab_size) representing the log probabilities for each position of the wild type sequence
         """
         # TODO: Adjust all of this to use self.model_window, instead of hard-coded 1024
         with torch.no_grad():
@@ -120,19 +120,18 @@ class ESMModel(ProteinLanguageModel):
             return token_probs
 
     def masked_marginals(self, batch_tokens: torch.Tensor, wt_sequence: str) -> torch.Tensor:
-        """Compute the scores for a wildtype sequence using the masked marginals approach, used later to compute mutant scores
+        """Compute scores for the wt sequence using the masked marginals 
+        approach (masking each position individually and predicting the amino acid distribution for that position)
 
-        :param model: the esm model to use 
-        :type model: torch.nn.Module
-        :param batch_tokens: the batch tokens representing the wild type sequence (and special tokens)
-        :type batch_tokens: torch.Tensor
-        :param alphabet: the model-specific alphabet used to convert wt sequence to batch_tokens
-        :type alphabet: esm.Alphabet
-        :param wt_sequence: the wild type sequence
-        :type wt_sequence: str
-        :raises NotImplementedError: if the scoring window is 'overlapping'
-        :return token_probs: the token probabilities
-        :rtype: torch.Tensor
+        Args:
+            batch_tokens (torch.Tensor): tensor of shape (1, seq_len) representing the tokenized wild type sequence
+            wt_sequence (str): the wild type sequence
+
+        Raises:
+            NotImplementedError: if an overlapping scoring window is used
+
+        Returns:
+            torch.Tensor: tensor of shape (1, seq_len, vocab_size) representing the log probabilities for each position of the wild type sequence
         """
         all_token_probs = []
         for i in range(batch_tokens.size(1)):
@@ -158,7 +157,14 @@ class ESMModel(ProteinLanguageModel):
         return token_probs
 
     def pseudo_ppl(self, sequences: List[str]) -> List[float]:
+        """Computes pseudo-likelihoodds for a list of sequences. This is the only scoring method that can handle indels
 
+        Args:
+            sequences (List[str]): List of sequences
+
+        Returns:
+            List[float]: List of pseudo-likelihoods
+        """
         # modify the sequence
         all_seq_probs = []
         for sequence in tqdm(sequences):
@@ -184,26 +190,24 @@ class ESMModel(ProteinLanguageModel):
             all_seq_probs.append(sum(log_probs))
         return all_seq_probs
 
-    def apply_wt_probabilities(self, sequence: List[str], wt_sequence: str, token_probs: torch.Tensor) -> List[float]:
-        """_summary_
+    def apply_wt_probabilities(self, sequences: List[str], wt_sequence: str, token_probs: torch.Tensor) -> List[float]:
+        """Applies the wild type probabilities to a list of sequences to get the log prob ratio between each sequence and the wild type. 
+        This is applied after the wt-marginals and masked-marginals approaches
 
-        :param sequence: _description_
-        :type sequence: List[str]
-        :param wt_sequence: _description_
-        :type wt_sequence: str
-        :param token_probs: _description_
-        :type token_probs: torch.Tensor
-        :param alphabet: _description_
-        :type alphabet: esm.Alphabet
-        :return: _description_
-        :rtype: List[float]
+        Args:
+            sequences (List[str]): List of sequences to compute log prob ratios for
+            wt_sequence (str): wild type sequence
+            token_probs (torch.Tensor): tensor of shape (1, seq_len, vocab_size) representing the log probabilities for each position of the wild type sequence
+
+        Returns:
+            List[float]: List of log prob ratios for each sequence
         """
         # TODO: Ignoring offset_idx from original script here for now, since it was always zero.
         # may want to add back later for additional flexibility
         # TODO: Could switch this to iterate over only mutant strings, but that would require passing in
         # the mutants as well as the mutated sequences, so iterating over the sequences for now.
         scores = []
-        for seq in sequence:
+        for seq in sequences:
             score = 0
             for i, aa in enumerate(seq):
                 # difference is zero in this case
@@ -215,24 +219,7 @@ class ESMModel(ProteinLanguageModel):
         return scores
 
     def get_embeddings(self, sequences: List[str], layer: str = "last") -> List[np.ndarray]:
-        """_summary_
-
-        :param sequences: _description_
-        :type sequences: List[str]
-        :param layer: _description_, defaults to "last"
-        :type layer: str, optional
-        :return: _description_
-        :rtype: List[np.ndarray]
-        """
         raise NotImplementedError
 
     def predict_position_logprobs(self, sequences: List[str]) -> List[np.ndarray]:
-        """_summary_
-
-        :param sequences: _description_
-        :type sequences: List[str]
-        :raises NotImplementedError: _description_
-        :return: _description_
-        :rtype: List[np.ndarray]
-        """
         raise NotImplementedError

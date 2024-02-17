@@ -2,14 +2,16 @@
 This module contains functions for scoring  mutations on fitness models
 """
 from typing import List
-import pandas as pd
-from ..constants.data import AA_INTEGER_MAP
+
 import Bio.SeqUtils as SeqUtils
+import pandas as pd
+
+from ..constants.data import AA_INTEGER_MAP
 
 
 def get_mutations(mutation_file: str, target_seq: str = "", mutant_delim=":") -> pd.DataFrame:
     """
-    Get mutations from a mutation file.
+    Get mutations from a csv.
 
     Args:
         mutation_file (str): The path to the mutation file.
@@ -93,6 +95,7 @@ def get_mutants(mutations: pd.DataFrame, target_seq: str, mutant_delim: str = ":
             # currently using a hack to get indel mutants
             # just treating the whole mutated sequence as a delins that replaces the wild type
             # it's gross, but valid HGVSp, and saves the trouble of finding the most parsimonious representation
+            # TODO: Find a better way to get indel mutants if possible
             mutants.append("p."+target_seq[0]+"1"+"_"+target_seq[-1] +
                            str(len(target_seq))+"delins"+mutated_sequence)
         else:
@@ -217,14 +220,13 @@ def get_optimal_window(mutation_position_relative: int, seq_len_wo_special: int,
     """Determines the section of the sequence to score based on the mutation position, sequence length,
     and model context length 
 
-    :param mutation_position_relative: location of mutation in sequence
-    :type mutation_position_relative: int
-    :param seq_len_wo_special: total length of sequence excluding special tokens 
-    :type seq_len_wo_special: int
-    :param model_window: length of model context
-    :type model_window: int
-    :return: the indices of the section of the sequence to score
-    :rtype: List[int]
+    Args:
+        mutation_position_relative (int): The position of the mutation in the sequence
+        seq_len_wo_special (int): The length of the sequence without special tokens
+        model_window (int): The length of the model context window
+
+    Returns:
+        List[int]: The start and end indices of the section of the sequence to score
     """
     half_model_window = model_window // 2
     if seq_len_wo_special <= model_window:

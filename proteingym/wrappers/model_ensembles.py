@@ -1,19 +1,26 @@
 import numpy as np
 from typing import Union, List
 from .generic_models import SequenceFitnessModel
-from .alignment_model import AlignmentModel
+from .generic_models import AlignmentModel
 from ..utils.alignment import Alignment
 
 
 class SequenceFitnessModelEnsemble:
+    """
+    This class represents an naive ensemble of sequence fitness models. It scores a list of sequences on each model
+    and then averages the scores together to produce the final fitness value. 
 
-    def __init__(self, model_types: List[str], model_configs: List[dict], alignment_file: Union[str, None] = None,
-                 model_names: Union[List[str], None] = None):
+    TODOs: would be nice to have an option for specifying separate alignments for each model. Could also adjust alignment logic to allow
+    for alignment parameters to be passed into the model and combined into an Alignment object there, rather than requiring it be specified up front. 
+    """
+    def __init__(self, model_configs: List[dict], alignment_file: Union[str, None] = None, model_names: Union[List[str], None] = None):
         if alignment_file is not None:
             self.alignment = Alignment(alignment_file)
+        self.model_configs = model_configs
         self.models = []
-        for i, model in enumerate(model_types):
-            model_constructor = SequenceFitnessModel.get_model(model)
+        for i, config in enumerate(self.model_configs):
+            model_type = config["model_type"]
+            model_constructor = SequenceFitnessModel.get_model(model_type)
             if issubclass(model_constructor, AlignmentModel):
                 if alignment_file is None:
                     raise ValueError(
@@ -28,16 +35,15 @@ class SequenceFitnessModelEnsemble:
             self.model_names = model_names
 
     def predict_fitnesses(self, sequences: List[str], wt_sequence: Union[str, None] = None, standardize: bool = False) -> List[float]:
-        """ predicts fitnesses of sequences for an ensemble of sequence fitness models, averaging the scores together
+        """Predicts the fitness for a list of sequences. If wild type sequence is passed in, then fitnesses are relative to the wild type sequence.
 
-        :param sequences: list of sequences to score 
-        :type sequences: List[str]
-        :param wt_sequence: wild type sequence to compare against, defaults to None
-        :type wt_sequence: Union[str, None], optional
-        :param standardize: whether to standardize the fitnesses before averaging them together (subtracts mean and divides by standard deviation), defaults to False
-        :type standardize: bool, optional
-        :return: list of fitnesses, averaged across all models in ensemble 
-        :rtype: List[float]
+        Args:
+            sequences (List[str]): List of sequences to predict fitnesses for
+            wt_sequence (Union[str, None], optional): wild type sequence to compute fitnesses relative to. Defaults to None.
+            standardize (bool, optional): Whether to standardize fitnesses by subtracting mean and dividing by standard deviation prior to averaging. Defaults to False.
+
+        Returns:
+            List[float]: List of predicted fitnesses
         """
         all_fitnesses = []
         for model in self.models:

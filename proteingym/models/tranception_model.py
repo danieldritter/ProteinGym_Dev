@@ -1,19 +1,46 @@
-from proteingym.wrappers.protein_language_model import ProteinLanguageModel
+from typing import List, Union
+
+import pandas as pd
+import torch
+from numpy.core import ndarray
+from transformers import PreTrainedTokenizerFast
+
 from proteingym.models.model_repos import tranception
-from typing import Union
+from proteingym.wrappers.generic_models import ProteinLanguageModel
 
 
+@ProteinLanguageModel.register("tranception_model")
 class TranceptionModel(ProteinLanguageModel):
 
-    def __init__(self, model_checkpoint: Union[str, None] = None, eval_mode: bool = True, nogpu: bool = False, attention_mode="tranception",
-                 position_embedding="group_alibi", tokenizer=None, scoring_window="optimal"):
-        super().__init__(model_checkpoint=model_checkpoint, eval_mode=eval_mode, nogpu=nogpu)
-        self.attention_mode = attention_mode
-        self.position_embedding = position_embedding
-        self.tokenizer = tokenizer
-        self.scoring_window = scoring_window
+    def __init__(self, tokenizer_file=None,
+                 score_both_directions=True, num_workers=1,
+                 tranception_config: dict = {}, **kwargs):
+        kwargs_parsed = self.parse_config(kwargs)
+        super().__init__(**kwargs_parsed)
+        self.score_both_directions = score_both_directions
+        self.num_workers = num_workers
+        self.tranception_config = self.parse_config(tranception_config)
+        self.tokenizer = PreTrainedTokenizerFast(
+            tokenizer_file=tokenizer_file, unk_token="[UNK]", sep_token="[SEP]", pad_token="[PAD]", cls_token="[CLS]", mask_token="[MASK]")
+        self.tranception_config["tokenizer"] = self.tokenizer
         config = tranception.config.TranceptionConfig(
-            attention_mode=self.attention_mode, position_embedding=self.position_embedding,
-            tokenizer=self.tokenizer, scoring_window=self.scoring_window)
+            **self.tranception_config)
         self.model = tranception.model_pytorch.TranceptionLMHeadModel.from_pretrained(
             pretrained_model_name_or_path=self.model_checkpoint, config=config)
+        if not self.nogpu and torch.cuda.is_available():
+            self.model = self.model.cuda()
+
+    def predict_logprobs(self, sequences: List[str], wt_sequence: Union[str, None] = None) -> List[float]:
+        # TODO: using score_mutants function within model for now, but this is designed to handle a lot of retrieval cases
+        # could write a pared down version that doesn't require putting things in dataframes and just scores the sequences directly.
+        seq_df = pd.DataFrame({"mutated_sequence": sequences})
+        scores = self.model.score_mutants(
+            DMS_data=seq_df, target_seq=wt_sequence, scoring_mirror=self.score_both_directions,
+            batch_size_inference=self.batch_size, num_workers=self.num_workers, indel_mode=True)
+        return scores['avg_score'].tolist()
+
+    def predict_position_logprobs(self, sequences: List[str], wt_sequence: Union[str, None] = None) -> List[ndarray]:
+        pass
+
+    def get_embeddings(self, sequences: List[str], layer: str = "last") -> List[ndarray]:
+        pass
