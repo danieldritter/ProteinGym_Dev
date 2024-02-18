@@ -1,6 +1,6 @@
 {
-   "model_type": "esm_model",
-   "model_checkpoint": "/home/daniel/proteingym_models/ESM2/esm2_t12_35M_UR50D.pt",
-   "scoring_strategy": "pseudo-ppl",
+   "model_type": "esm",
+   "model_checkpoint": "/home/danieldritter/proteingym_models/ESM2/esm2_t12_35M_UR50D.pt",
+   "scoring_strategy": "masked-marginals",
    "scoring_window": "optimal"
 }

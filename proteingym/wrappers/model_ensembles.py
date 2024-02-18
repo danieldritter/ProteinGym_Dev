@@ -1,40 +1,43 @@
+from typing import List, Union
+
 import numpy as np
-from typing import Union, List
-from .generic_models import SequenceFitnessModel
-from .generic_models import AlignmentModel
+
 from ..utils.alignment import Alignment
+from .generic_models import AlignmentModel, SequenceFitnessModel
 
 
 class SequenceFitnessModelEnsemble:
     """
     This class represents an naive ensemble of sequence fitness models. It scores a list of sequences on each model
-    and then averages the scores together to produce the final fitness value. 
+    and then averages the scores together to produce the final fitness value.
 
-    TODOs: would be nice to have an option for specifying separate alignments for each model. Could also adjust alignment logic to allow
-    for alignment parameters to be passed into the model and combined into an Alignment object there, rather than requiring it be specified up front. 
+    TODOs: Add option to run each model iteratively, store scores, and then combine, for larger models where holding
+    all of them in memory is costly/inefficient
     """
-    def __init__(self, model_configs: List[dict], alignment_file: Union[str, None] = None, model_names: Union[List[str], None] = None):
-        if alignment_file is not None:
-            self.alignment = Alignment(alignment_file)
+
+    def __init__(
+        self,
+        model_configs: List[dict],
+        model_names: Union[List[str], None] = None,
+    ):
         self.model_configs = model_configs
         self.models = []
-        for i, config in enumerate(self.model_configs):
-            model_type = config["model_type"]
-            model_constructor = SequenceFitnessModel.get_model(model_type)
-            if issubclass(model_constructor, AlignmentModel):
-                if alignment_file is None:
-                    raise ValueError(
-                        "Must supply alignment file if using alignment model")
-                self.models.append(model_constructor(
-                    alignment=self.alignment, **model_configs[i]))
-            else:
-                self.models.append(model_constructor(**model_configs[i]))
+        for config in self.model_configs:
+            model_constructor = SequenceFitnessModel.get_model(config["model_type"])
+            self.models.append(model_constructor(**config))
         if model_names is not None:
             assert len(model_names) == len(
-                self.models), "Must supply same number of model names as models in ensemble"
+                self.models
+            ), "Must supply same number of model names as models in ensemble"
             self.model_names = model_names
+            print(f"Naive Ensemble of {len(self.models)} models: {self.model_names}")
 
-    def predict_fitnesses(self, sequences: List[str], wt_sequence: Union[str, None] = None, standardize: bool = False) -> List[float]:
+    def predict_fitnesses(
+        self,
+        sequences: List[str],
+        wt_sequence: Union[str, None] = None,
+        standardize: bool = False,
+    ) -> List[float]:
         """Predicts the fitness for a list of sequences. If wild type sequence is passed in, then fitnesses are relative to the wild type sequence.
 
         Args:
@@ -46,11 +49,11 @@ class SequenceFitnessModelEnsemble:
             List[float]: List of predicted fitnesses
         """
         all_fitnesses = []
-        for model in self.models:
+        for i, model in enumerate(self.models):
+            print(f"Scoring with {self.model_names[i]}")
             fitnesses = model.predict_fitnesses(sequences, wt_sequence)
             if standardize:
                 fitnesses = np.array(fitnesses)
-                fitnesses = (fitnesses - np.mean(fitnesses)) / \
-                    np.std(fitnesses)
+                fitnesses = (fitnesses - np.mean(fitnesses)) / np.std(fitnesses)
             all_fitnesses.append(fitnesses)
         return np.mean(all_fitnesses, axis=0).tolist()

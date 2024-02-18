@@ -1,6 +1,7 @@
 """
 This module contains functions for scoring  mutations on fitness models
 """
+
 from typing import List
 
 import Bio.SeqUtils as SeqUtils
@@ -9,36 +10,44 @@ import pandas as pd
 from ..constants.data import AA_INTEGER_MAP
 
 
-def get_mutations(mutation_file: str, target_seq: str = "", mutant_delim=":") -> pd.DataFrame:
+def get_mutations(
+    mutation_file: str, target_seq: str = "", mutant_delim=":"
+) -> pd.DataFrame:
     """
-    Get mutations from a csv.
+    Read in mutations from a csv.
 
     Args:
         mutation_file (str): The path to the mutation file.
-        target_seq (str): Target sequence, used to generate mutations from mutant column if 
-            mutated sequence is not present 
+        target_seq (str): Target sequence, used to generate mutations from mutant column if
+            mutated sequence is not present
     Returns:
-        pd.DataFrame: A dataframe containing the mutations, with a mutant column and mutated sequence column
+        mutations (pd.DataFrame): A dataframe containing the mutations, with a mutant column and mutated sequence column
     """
     mutations = pd.read_csv(mutation_file)
     if "mutated_sequence" not in mutations.columns:
         if "mutant" in mutations.columns:
             if target_seq == "":
                 raise ValueError(
-                    "target_seq must be provided if mutated_sequence is not present")
+                    "target_seq must be provided if mutated_sequence is not present"
+                )
             mutations["mutated_sequence"] = get_mutated_sequences(
-                mutations, target_seq, mutant_delim=mutant_delim)
+                mutations, target_seq, mutant_delim=mutant_delim
+            )
         else:
             raise ValueError(
-                "mutant column must be present if mutated_sequence is not present")
+                "mutant column must be present if mutated_sequence is not present"
+            )
     else:
         if "mutant" not in mutations.columns:
             mutations["mutant"] = get_mutants(
-                mutations, target_seq, mutant_delim=mutant_delim)
+                mutations, target_seq, mutant_delim=mutant_delim
+            )
     return mutations
 
 
-def get_mutated_sequences(mutations: pd.DataFrame, target_seq: str, mutant_delim=":") -> List[str]:
+def get_mutated_sequences(
+    mutations: pd.DataFrame, target_seq: str, mutant_delim=":"
+) -> List[str]:
     """
     Get mutated sequences from mutations dataframe.
 
@@ -46,7 +55,7 @@ def get_mutated_sequences(mutations: pd.DataFrame, target_seq: str, mutant_delim
         mutations (pd.DataFrame): The dataframe containing the mutations.
 
     Returns:
-        pd.Series: A series containing the mutated sequences.
+        mutated_sequences (List[str]): A series containing the mutated sequences.
     """
     mutants = mutations["mutant"]
     mutated_sequences = []
@@ -58,25 +67,32 @@ def get_mutated_sequences(mutations: pd.DataFrame, target_seq: str, mutant_delim
             indiv_mutants = mutant.split(mutant_delim)
             mut_seq = target_seq
             for indiv_mutant in indiv_mutants:
-                orig_aa, pos, mut_aa = indiv_mutant[0], indiv_mutant[1:-
-                                                                     1], indiv_mutant[-1]
+                orig_aa, pos, mut_aa = (
+                    indiv_mutant[0],
+                    indiv_mutant[1:-1],
+                    indiv_mutant[-1],
+                )
                 if not pos.isnumeric():
                     raise ValueError(
-                        "mutants must be in single letter triplet form, e.g. A23M")
+                        "mutants must be in single letter triplet form, e.g. A23M"
+                    )
                 if not orig_aa in AA_INTEGER_MAP:
                     raise ValueError(f"{orig_aa} is not a valid amino acid")
                 if not mut_aa in AA_INTEGER_MAP:
                     raise ValueError(f"{mut_aa} is not a valid amino acid")
-                if not orig_aa == target_seq[int(pos)-1]:
+                if not orig_aa == target_seq[int(pos) - 1]:
                     raise ValueError(
-                        f"original amino acid {orig_aa} at position {pos} does not match target sequence amino acid {target_seq[int(pos)-1]}")
+                        f"original amino acid {orig_aa} at position {pos} does not match target sequence amino acid {target_seq[int(pos)-1]}"
+                    )
                 pos = int(pos)
-                mut_seq = mut_seq[:int(pos)-1] + mut_aa + mut_seq[int(pos):]
+                mut_seq = mut_seq[: int(pos) - 1] + mut_aa + mut_seq[int(pos) :]
             mutated_sequences.append(mut_seq)
     return mutated_sequences
 
 
-def get_mutants(mutations: pd.DataFrame, target_seq: str, mutant_delim: str = ":") -> List[str]:
+def get_mutants(
+    mutations: pd.DataFrame, target_seq: str, mutant_delim: str = ":"
+) -> List[str]:
     """
     Get mutants from mutations dataframe.
 
@@ -86,7 +102,7 @@ def get_mutants(mutations: pd.DataFrame, target_seq: str, mutant_delim: str = ":
         mutant_delim (str, default ':'): The delimiter used to separate individual mutations.
 
     Returns:
-        pd.Series: A series containing the mutants.
+        mutants (List[str]): A series containing the mutants.
     """
     mutants = []
     for mutated_sequence in mutations["mutated_sequence"]:
@@ -96,13 +112,20 @@ def get_mutants(mutations: pd.DataFrame, target_seq: str, mutant_delim: str = ":
             # just treating the whole mutated sequence as a delins that replaces the wild type
             # it's gross, but valid HGVSp, and saves the trouble of finding the most parsimonious representation
             # TODO: Find a better way to get indel mutants if possible
-            mutants.append("p."+target_seq[0]+"1"+"_"+target_seq[-1] +
-                           str(len(target_seq))+"delins"+mutated_sequence)
+            mutants.append(
+                "p."
+                + target_seq[0]
+                + "1"
+                + "_"
+                + target_seq[-1]
+                + str(len(target_seq))
+                + "delins"
+                + mutated_sequence
+            )
         else:
             for i, char in enumerate(mutated_sequence):
                 if char != target_seq[i]:
-                    indiv_mutants.append(
-                        target_seq[i] + str(i+1) + char)
+                    indiv_mutants.append(target_seq[i] + str(i + 1) + char)
             # if mutated sequence is same as target sequence, add synonomous mutation at first position, just to have something
             if len(indiv_mutants) == 0:
                 indiv_mutants = [target_seq[0] + str(1) + target_seq[0]]
@@ -140,21 +163,39 @@ def get_indel_sequence(mutant: str, target_seq: str) -> str:
     """
     parsed_mutant = parse_hgvsp(mutant)
     if parsed_mutant["mutation_type"] == "del":
-        return target_seq[:int(parsed_mutant["orig_seq_start"])-1] + target_seq[int(parsed_mutant["orig_seq_end"]):]
+        return (
+            target_seq[: int(parsed_mutant["orig_seq_start"]) - 1]
+            + target_seq[int(parsed_mutant["orig_seq_end"]) :]
+        )
     elif parsed_mutant["mutation_type"] == "ins":
-        return target_seq[:int(parsed_mutant["orig_seq_start"])] + parsed_mutant["ins_seq"] + target_seq[int(parsed_mutant["orig_seq_start"]):]
+        return (
+            target_seq[: int(parsed_mutant["orig_seq_start"])]
+            + parsed_mutant["ins_seq"]
+            + target_seq[int(parsed_mutant["orig_seq_start"]) :]
+        )
     elif parsed_mutant["mutation_type"] == "dup":
-        dup_seq = target_seq[int(
-            parsed_mutant["orig_seq_start"])-1:int(parsed_mutant["orig_seq_end"])]
-        return target_seq[:int(parsed_mutant["orig_seq_start"])] + dup_seq + target_seq[int(parsed_mutant["orig_seq_start"]):]
+        dup_seq = target_seq[
+            int(parsed_mutant["orig_seq_start"])
+            - 1 : int(parsed_mutant["orig_seq_end"])
+        ]
+        return (
+            target_seq[: int(parsed_mutant["orig_seq_start"])]
+            + dup_seq
+            + target_seq[int(parsed_mutant["orig_seq_start"]) :]
+        )
     elif parsed_mutant["mutation_type"] == "delins":
-        return target_seq[:int(parsed_mutant["orig_seq_start"])-1] + parsed_mutant["ins_seq"] + target_seq[int(parsed_mutant["orig_seq_end"]):]
+        return (
+            target_seq[: int(parsed_mutant["orig_seq_start"]) - 1]
+            + parsed_mutant["ins_seq"]
+            + target_seq[int(parsed_mutant["orig_seq_end"]) :]
+        )
     else:
         raise ValueError(
-            f"Mutation type {parsed_mutant['mutation_type']} is not supported. Should never get here")
+            f"Mutation type {parsed_mutant['mutation_type']} is not supported. Should never get here"
+        )
 
 
-def parse_hgvsp(hgvsp: str) -> dict:
+def parse_hgvsp(hgvsp: str) -> dict[str, str]:
     """
     Parse a HGVSp string into a list of component parts.
 
@@ -162,7 +203,7 @@ def parse_hgvsp(hgvsp: str) -> dict:
         hgvsp (str): The HGVSp string to parse.
 
     Returns:
-        dict: A dictionary containing the component parts of the HGVSp string.
+        component (dict[str,str]): A dictionary containing the component parts of the HGVSp string.
     """
     component_dict = {}
     if hgvsp.startswith("p."):
@@ -206,19 +247,22 @@ def replace_three_letter_aas(mutant: str) -> str:
         mutant (str): The HGVSp string describing the mutation.
 
     Returns:
-        replaced_mutation (str): The HGVSp string with 3-letter amino acids replaced with 1-letter amino acids
+        mutant (str): The HGVSp string with 3-letter amino acids replaced with 1-letter amino acids
     """
     for key, value in SeqUtils.IUPACData.protein_letters_3to1.items():
         mutant = mutant.replace(key, value)
     return mutant
 
+
 # TODO: Confirm that the below function is getting used correctly. e.g. in ESMModel the seq_len_wo_special parameter
 # is passed as seq_len + 2, which seems like it includes the special tokens.
 
 
-def get_optimal_window(mutation_position_relative: int, seq_len_wo_special: int, model_window: int) -> List[int]:
+def get_optimal_window(
+    mutation_position_relative: int, seq_len_wo_special: int, model_window: int
+) -> List[int]:
     """Determines the section of the sequence to score based on the mutation position, sequence length,
-    and model context length 
+    and model context length
 
     Args:
         mutation_position_relative (int): The position of the mutation in the sequence
@@ -236,4 +280,7 @@ def get_optimal_window(mutation_position_relative: int, seq_len_wo_special: int,
     elif mutation_position_relative >= seq_len_wo_special - half_model_window:
         return [seq_len_wo_special - model_window, seq_len_wo_special]
     else:
-        return [max(0, mutation_position_relative-half_model_window), min(seq_len_wo_special, mutation_position_relative+half_model_window)]
+        return [
+            max(0, mutation_position_relative - half_model_window),
+            min(seq_len_wo_special, mutation_position_relative + half_model_window),
+        ]
