@@ -5,7 +5,6 @@ This module contains the SiteIndependentModel class.
 from typing import List, Union
 
 import numpy as np
-
 from proteingym.constants.data import AA_INTEGER_MAP
 from proteingym.wrappers.generic_models import AlignmentProbabilityModel
 

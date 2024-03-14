@@ -4,7 +4,6 @@ from typing import List, Union
 import numpy as np
 import torch
 from tqdm import tqdm
-
 from proteingym.models.model_repos import esm
 from proteingym.utils.scoring_utils import get_optimal_window
 from proteingym.wrappers.generic_models import ProteinLanguageModel
@@ -271,10 +270,27 @@ class ESMModel(ProteinLanguageModel):
             scores.append(score)
         return scores
 
-    def get_embeddings(
-        self, sequences: List[str], layer: str = "last"
-    ) -> List[np.ndarray]:
-        raise NotImplementedError
+    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]) -> torch.Tensor:
+        output_reps = None 
+        for i in range(len(sequences)//self.batch_size):
+            batch_seqs = sequences[i*self.batch_size:min((i+1)*self.batch_size,len(sequences))]
+            _, _, batch_tokens = self.batch_converter([("protein{i}", seq) for i,seq in enumerate(batch_seqs)])
+            if not self.nogpu and torch.cuda.is_available():
+                batch_tokens = batch_tokens.cuda()
+            layers = [val if val != -1 else len(self.model.layers) for val in layers]
+            output = self.model(batch_tokens,repr_layers=layers)
+            if output_reps is None:
+                output_reps = output["representations"]
+            else:
+                output_reps = {key: torch.cat((val,output["representations"][key]),dim=0) for key,val in output_reps.items()}
+        return output_reps
+
 
     def predict_position_logprobs(self, sequences: List[str]) -> List[np.ndarray]:
         raise NotImplementedError
+
+    def encode_sequences(self, sequences: List[str]):
+        return self.batch_converter(sequences)[2]  # batch converter returns of a tuple of (labels, strings, tokens)
+
+    def get_embed_dim(self, layer: int = -1) -> int:
+        return self.model.embed_dim

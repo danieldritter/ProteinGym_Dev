@@ -5,7 +5,6 @@ import pandas as pd
 import torch
 from numpy.core import ndarray
 from transformers import PreTrainedTokenizerFast
-
 from proteingym.models.model_repos import tranception
 from proteingym.wrappers.generic_models import ProteinLanguageModel
 

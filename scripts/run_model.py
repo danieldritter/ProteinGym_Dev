@@ -1,11 +1,9 @@
 """
 Basic script to run a fitness model on a set of mutations 
 """
-
 import argparse
 import json
 import os
-
 import pandas as pd
 from scipy.stats import spearmanr
 import warnings
@@ -118,11 +116,13 @@ if __name__ == "__main__":
     mutations = get_mutations(
         mut_file, str(ref_df["target_seq"][args.experiment_index])
     )
-    logprobs = model.predict_fitnesses(
-        mutations["mutated_sequence"].values.tolist(),
-        ref_df["target_seq"][args.experiment_index],
-    )
-    # print(logprobs)
-    mutations["predictions"] = logprobs
-    # print(mutations)
-    print(spearmanr(mutations["DMS_score"], mutations["predictions"]))
+    # logprobs = model.predict_fitnesses(
+    #     mutations["mutated_sequence"].values.tolist(),
+    #     ref_df["target_seq"][args.experiment_index],
+    # )
+    embeddings = model.get_embeddings(mutations["mutated_sequence"].values.tolist(),layers=[1,2,3,4,5,-1])
+    for key in embeddings:
+        print(key)
+        print(embeddings[key].shape)
+    # mutations["predictions"] = logprobs
+    # print(spearmanr(mutations["DMS_score"], mutations["predictions"]))

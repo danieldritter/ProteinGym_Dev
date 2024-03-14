@@ -1,12 +1,9 @@
 """
 This module contains functions for scoring  mutations on fitness models
 """
-
 from typing import List
-
 import Bio.SeqUtils as SeqUtils
 import pandas as pd
-
 from ..constants.data import AA_INTEGER_MAP
 
 

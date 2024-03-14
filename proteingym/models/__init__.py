@@ -20,12 +20,10 @@ sys.path.append(str(package_path))
 # Add the model_repo subdirectories to sys.path
 model_repo_path = str(package_path) + os.sep + "model_repos"
 sys.path.append(str(model_repo_path))
-
 for loader, module_name, is_pkg in pkgutil.walk_packages(package.__path__):
     if not loader.path.endswith("models"):
         continue
     _module = importlib.import_module(module_name)
-
 # Remove the package directory from sys.path
 sys.path.remove(str(package_path))
 sys.path.remove(str(model_repo_path))

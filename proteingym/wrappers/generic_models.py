@@ -5,9 +5,10 @@ Generic model classes
 import json
 import warnings
 from abc import ABC, abstractmethod
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union
 
 import numpy as np
+import torch
 
 from ..utils.alignment import Alignment
 
@@ -21,8 +22,8 @@ class SequenceFitnessModel(ABC):
 
     def __init__(
         self,
-        model_checkpoint: Union[str, None] = None,
-        model_type: Union[str, None] = None,
+        model_checkpoint: Optional[str] = None,
+        model_type: Optional[str] = None,
         **kwargs,
     ):
         self.model_checkpoint = model_checkpoint
@@ -76,7 +77,7 @@ class SequenceFitnessModel(ABC):
 
     @abstractmethod
     def predict_fitnesses(
-        self, sequences: List[str], wt_sequence: Union[str, None] = None
+        self, sequences: List[str], wt_sequence: Optional[str] = None
     ) -> List[float]:
         """Given a list of sequences, returns the predicted fitness values for each sequence.
 
@@ -96,13 +97,13 @@ class ProbabilitySequenceFitnessModel(SequenceFitnessModel):
     """
 
     def predict_fitnesses(
-        self, sequences: List[str], wt_sequence: Union[str, None] = None
+        self, sequences: List[str], wt_sequence: Optional[str] = None
     ) -> List[float]:
         return self.predict_logprobs(sequences, wt_sequence)
 
     @abstractmethod
     def predict_logprobs(
-        self, sequences: List[str], wt_sequence: Union[str, None] = None
+        self, sequences: List[str], wt_sequence: Optional[str] = None
     ) -> List[float]:
         """Given a list of sequences, produce the log-probability estimates for each sequence.
         If the wild type sequence is passed in, returned values are the log-ratio between the mutated and wild type sequence probability
@@ -126,7 +127,6 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel):
         eval_mode: bool = True,
         nogpu: bool = False,
         batch_size: int = 1,
-        last_layer_name: Union[str, None] = None,
         **kwargs,
     ):
         """Initializes ProteinLanguageModel Class
@@ -142,11 +142,10 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel):
         self.eval_mode = eval_mode
         self.nogpu = nogpu
         self.batch_size = batch_size
-        self.last_layer_name = last_layer_name
 
     @abstractmethod
     def predict_position_logprobs(
-        self, sequences: List[str], wt_sequence: Union[str, None] = None
+        self, sequences: List[str], wt_sequence: Optional[str] = None
     ) -> List[np.ndarray]:
         """
         Predicts the per-position log probabilities for a given list of sequences.
@@ -158,23 +157,29 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel):
             fitnesses (List[np.ndarray]): A list of numpy arrays representing the position log probabilities for each sequence.
                 Each ndarray is shape (seq_len, vocab_size)
         """
-
+    
     @abstractmethod
-    def get_embeddings(
-        self, sequences: List[str], layer: str = "last"
-    ) -> List[np.ndarray]:
-        """
-        Get contextualized embeddings from the model. Defaults to embeddings
-        from last layer, but a layer name can be specified.
+    def get_embeddings(self, sequences: List[str], layer: int = -1) -> torch.Tensor:
+        """Returns embeddings for the given sequences at the given layer.
 
         Args:
-            sequences (List[str]): List of sequences to get embeddings for.
-            layer (str, optional): Name of layer to get embeddings for. Defaults to "last".
+            sequences (Union[List[str], torch.Tensor]): _description_
+            layer (int, optional): _description_. Defaults to -1.
 
         Returns:
-            List[np.ndarray]: List of embeddings for each sequence. Each ndarray is shape (seq_len, embedding_dim)
+            torch.Tensor: _description_
         """
 
+    @abstractmethod
+    def get_embed_dim(self, layer: int = -1) -> int:
+        """returns the dimension of the embeddings for the specified layer. Used in finetuning to initialize head layer on top of embeddings.
+
+        Args:
+            layer (int, optional): Name of layer to get embeddings for. Defaults to -1, last layer.
+
+        Returns:
+            int: dimension of the embeddings
+        """
 
 class AlignmentModel(SequenceFitnessModel):
     """
