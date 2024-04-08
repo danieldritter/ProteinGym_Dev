@@ -1,0 +1,6 @@
+_target_: proteingym.wrappers.supervised_models.PLMFinetunedModel
+model: esm2_8m
+output_dim: 1
+embedding_layers: [-1]
+loss_func:
+  _target_: torch.nn.MSELoss

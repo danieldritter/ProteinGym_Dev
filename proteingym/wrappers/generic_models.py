@@ -159,26 +159,26 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel):
         """
     
     @abstractmethod
-    def get_embeddings(self, sequences: List[str], layer: int = -1) -> torch.Tensor:
-        """Returns embeddings for the given sequences at the given layer.
+    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]) -> dict[int,torch.Tensor]:
+        """Returns embeddings for the given sequences at the given layers.
 
         Args:
-            sequences (Union[List[str], torch.Tensor]): _description_
-            layer (int, optional): _description_. Defaults to -1.
+            sequences (Union[List[str], torch.Tensor]): list of sequences to get embeddings for
+            layer (List[int], optional): Name of layers to get embeddings for. Defaults to -1.
 
         Returns:
-            torch.Tensor: _description_
+            dict[int,torch.Tensor]: dictionary of layer indexes and their corresponding embeddings
         """
 
     @abstractmethod
-    def get_embed_dim(self, layer: int = -1) -> int:
-        """returns the dimension of the embeddings for the specified layer. Used in finetuning to initialize head layer on top of embeddings.
+    def get_embed_dim(self, layers: List[int] = [-1]) -> List[int]:
+        """returns a list of the dimension of the embeddings for the specified layers. Used in finetuning to initialize head layer on top of embeddings
 
         Args:
-            layer (int, optional): Name of layer to get embeddings for. Defaults to -1, last layer.
+            layers (List[int], optional): Name of layer to get embeddings for. Defaults to -1, last layer.
 
         Returns:
-            int: dimension of the embeddings
+            List[int]: dimension of the embeddings
         """
 
 class AlignmentModel(SequenceFitnessModel):

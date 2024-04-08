@@ -187,5 +187,8 @@ class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
     ) -> List[np.ndarray]:
         pass
 
-    def get_embeddings(self, sequences: List[str], layer: str = "last"):
+    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]):
         pass
+
+    def get_embed_dim(self, layers: List[int] = [-1]):
+        pass 

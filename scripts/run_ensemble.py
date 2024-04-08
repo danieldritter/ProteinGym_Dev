@@ -7,7 +7,7 @@ import json
 import os
 from scipy.stats import spearmanr 
 import pandas as pd
-from run_model import add_alignment_config, parse_config
+from scripts.run_model_old import add_alignment_config, parse_config
 
 from proteingym.utils.scoring_utils import get_mutations
 from proteingym.wrappers.generic_models import (AlignmentModel,
