@@ -12,9 +12,8 @@ from proteingym.utils.scoring_utils import get_mutations
 from proteingym.wrappers.generic_models import SequenceFitnessModel, AlignmentModel
 
 # TODO: Fix config scheme so it can fit in a folder, but still be overridden and not require removing "zero_shot_configs" key
-@hydra.main(version_base=None, config_path=f"{os.path.dirname(os.path.dirname(__file__))}/configs", config_name="zero_shot_configs/default_config")
+@hydra.main(version_base=None, config_path=f"{os.path.dirname(os.path.dirname(__file__))}/configs", config_name="default_zero_shot_config")
 def main(config: DictConfig):
-    config = config["zero_shot_configs"]
     ref_df = pd.read_csv(config.reference_file)
     mut_file = config.data_folder + os.sep + ref_df["DMS_filename"][config.experiment_index]
     mutations = get_mutations(mut_file, str(ref_df["target_seq"][config.experiment_index]))
@@ -31,7 +30,8 @@ def main(config: DictConfig):
         model = hydra.utils.instantiate(config.model)
     logprobs = model.predict_fitnesses(
         mutations["mutated_sequence"].values.tolist(),
-        ref_df["target_seq"][config.experiment_index]
+        ref_df["target_seq"][config.experiment_index],
+        batch_size=config.batch_size
     )
     print(spearmanr(mutations["DMS_score"], logprobs))
 

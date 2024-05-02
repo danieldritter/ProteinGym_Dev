@@ -1,9 +1,10 @@
 import math
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy as np
 import torch
 from tqdm import tqdm
+import warnings
 from proteingym.models.model_repos import esm
 from proteingym.utils.scoring_utils import get_optimal_window
 from proteingym.wrappers.generic_models import ProteinLanguageModel
@@ -25,14 +26,14 @@ class ESMModel(ProteinLanguageModel):
         self.scoring_strategy = scoring_strategy
         self.scoring_window = scoring_window
         self.model_window = 1024
-        if self.eval_mode:
-            self.model.eval()
-        if not self.nogpu and torch.cuda.is_available():
-            self.model = self.model.cuda()
+        self.model.to(self.device)
 
     def predict_logprobs(
-        self, sequences: List[str], wt_sequence: Union[str, None] = None
+        self, sequences: List[str], wt_sequence: Union[str, None] = None,
+        batch_size: Optional[int] = None
     ) -> List[float]:
+        if batch_size is not None:
+            warnings.warn("Batch size is currently ignored for ESM models for inference. Batch size of 1 is used")
         if wt_sequence is None:
             raise ValueError("wt_sequence must be provided for ESM models")
         if self.scoring_strategy != "pseudo-ppl":
@@ -43,6 +44,7 @@ class ESMModel(ProteinLanguageModel):
             ("protein1", wt_sequence),
         ]
         _, _, batch_tokens = self.batch_converter(data)
+        batch_tokens = batch_tokens.to(self.device)
         if self.scoring_strategy == "wt-marginals":
             token_probs = self.wt_marginals(batch_tokens)
             scores = self.apply_wt_probabilities(sequences, wt_sequence, token_probs)
@@ -74,10 +76,10 @@ class ESMModel(ProteinLanguageModel):
                 # Note: batch_size = 1 (need to keep batch dimension to score with model though)
                 token_probs = torch.zeros(
                     (batch_size, seq_len, len(self.alphabet))
-                ).cuda()
-                token_weights = torch.zeros((batch_size, seq_len)).cuda()
+                ).to(batch_tokens.device)
+                token_weights = torch.zeros((batch_size, seq_len)).to(batch_tokens.device)
                 # 1 for 256≤i<1022-256
-                weights = torch.ones(self.model_window).cuda()
+                weights = torch.ones(self.model_window).to(batch_tokens.device)
                 for i in range(1, 257):
                     weights[i] = 1 / (1 + math.exp(-(i - 128) / 16))
                 for i in range(1022 - 256, 1023):
@@ -107,7 +109,7 @@ class ESMModel(ProteinLanguageModel):
                         self.model(
                             batch_tokens[
                                 :, start_right_window : end_right_window + 1
-                            ].cuda()
+                            ].to(batch_tokens.device)
                         )["logits"],
                         dim=-1,
                     )
@@ -133,7 +135,7 @@ class ESMModel(ProteinLanguageModel):
                         self.model(
                             batch_tokens[
                                 :, start_central_window : end_central_window + 1
-                            ].cuda()
+                            ].to(batch_tokens.device)
                         )["logits"],
                         dim=-1,
                     )
@@ -149,7 +151,7 @@ class ESMModel(ProteinLanguageModel):
                 )  # Add 1 to broadcast
             else:
                 token_probs = torch.log_softmax(
-                    self.model(batch_tokens.cuda())["logits"], dim=-1
+                    self.model(batch_tokens)["logits"], dim=-1
                 )
             return token_probs
 
@@ -230,7 +232,7 @@ class ESMModel(ProteinLanguageModel):
                 batch_tokens_masked[0, i] = self.alphabet.mask_idx
                 with torch.no_grad():
                     token_probs = torch.log_softmax(
-                        self.model(batch_tokens_masked.cuda())["logits"], dim=-1
+                        self.model(batch_tokens_masked)["logits"], dim=-1
                     )
                 log_probs.append(
                     token_probs[0, i, self.alphabet.get_idx(sequence[i])].item()
@@ -270,27 +272,29 @@ class ESMModel(ProteinLanguageModel):
             scores.append(score)
         return scores
 
-    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]) -> torch.Tensor:
-        output_reps = None 
+    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]) -> dict[int,torch.Tensor]:
+        output_reps = None
+        # converting negative integers to positives since esm codebase only takes positive integers for repr_layers
+        pos_layers = [val if val >= 0 else len(self.model.layers) + val for val in layers]   
         for i in range(len(sequences)//self.batch_size):
             batch_seqs = sequences[i*self.batch_size:min((i+1)*self.batch_size,len(sequences))]
             _, _, batch_tokens = self.batch_converter([("protein{i}", seq) for i,seq in enumerate(batch_seqs)])
-            if not self.nogpu and torch.cuda.is_available():
-                batch_tokens = batch_tokens.cuda()
-            layers = [val if val != -1 else len(self.model.layers) for val in layers]
-            output = self.model(batch_tokens,repr_layers=layers)
+            output = self.model(batch_tokens,repr_layers=pos_layers)
             if output_reps is None:
                 output_reps = output["representations"]
             else:
                 output_reps = {key: torch.cat((val,output["representations"][key]),dim=0) for key,val in output_reps.items()}
+        if output_reps is not None:
+            # Converting layer indices back to those passed in
+            output_reps = {layers[i]:output_reps[pos_layers[i]].type(torch.float32) for i in range(len(pos_layers))}
+        else:
+            raise ValueError("Could not get embeddings for given layers")
         return output_reps
 
 
     def predict_position_logprobs(self, sequences: List[str]) -> List[np.ndarray]:
         raise NotImplementedError
 
-    def encode_sequences(self, sequences: List[str]):
-        return self.batch_converter(sequences)[2]  # batch converter returns of a tuple of (labels, strings, tokens)
-
-    def get_embed_dim(self, layer: int = -1) -> int:
-        return self.model.embed_dim
+    def get_embed_dim(self, layers: List[int] = [-1]) -> List[int]:
+        # embedding dimension is same at every layer so just return that value multiple times
+        return [self.model.embed_dim for i in range(len(layers))]

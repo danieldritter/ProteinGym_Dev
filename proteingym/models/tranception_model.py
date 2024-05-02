@@ -37,11 +37,10 @@ class TranceptionModel(ProteinLanguageModel):
         self.model = tranception.model_pytorch.TranceptionLMHeadModel.from_pretrained(
             pretrained_model_name_or_path=self.model_checkpoint, config=config
         )
-        if not self.nogpu and torch.cuda.is_available():
-            self.model = self.model.cuda()
 
     def predict_logprobs(
-        self, sequences: List[str], wt_sequence: Union[str, None] = None
+        self, sequences: List[str], wt_sequence: Union[str, None] = None,
+        batch_size: int = 1
     ) -> List[float]:
         # TODO: using score_mutants function within model for now, but this is designed to handle a lot of retrieval cases
         # could write a pared down version that doesn't require putting things in dataframes and just scores the sequences directly.
@@ -50,7 +49,7 @@ class TranceptionModel(ProteinLanguageModel):
             DMS_data=seq_df,
             target_seq=wt_sequence,
             scoring_mirror=self.score_both_directions,
-            batch_size_inference=self.batch_size,
+            batch_size_inference=batch_size,
             num_workers=self.num_workers,
             indel_mode=True,
         )

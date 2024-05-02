@@ -31,10 +31,6 @@ class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
             self.model_checkpoint
         )
         self.batch_converter = self.alphabet.get_batch_converter()
-        if self.eval_mode:
-            self.model.eval()
-        if not self.nogpu and torch.cuda.is_available():
-            self.model = self.model.cuda()
         self.random_seed = random_seed
         self.processed_msa = self.read_msa(self.num_msa_samples, self.sampling_strategy)
 

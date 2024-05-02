@@ -77,7 +77,10 @@ class SequenceFitnessModel(ABC):
 
     @abstractmethod
     def predict_fitnesses(
-        self, sequences: List[str], wt_sequence: Optional[str] = None
+        self,
+        sequences: List[str],
+        wt_sequence: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> List[float]:
         """Given a list of sequences, returns the predicted fitness values for each sequence.
 
@@ -85,6 +88,7 @@ class SequenceFitnessModel(ABC):
             sequences (List[str]): List of input sequences to predict fitness values for
             wt_sequence (Union[str, None], optional): The wild-type sequence to compare against. Defaults to None.
             If passed in, fitness values are relative to the wild-type sequence
+            batch_size (Union[int, None], optional): The batch size to use when predicting fitness values. Defaults to None, meaning a single batch of all data.
 
         Returns:
             List[float]: List of fitness values for each sequence
@@ -97,13 +101,16 @@ class ProbabilitySequenceFitnessModel(SequenceFitnessModel):
     """
 
     def predict_fitnesses(
-        self, sequences: List[str], wt_sequence: Optional[str] = None
+        self,
+        sequences: List[str],
+        wt_sequence: Optional[str] = None,
+        batch_size: Optional[int] = None,
     ) -> List[float]:
-        return self.predict_logprobs(sequences, wt_sequence)
+        return self.predict_logprobs(sequences, wt_sequence, batch_size=batch_size)
 
     @abstractmethod
     def predict_logprobs(
-        self, sequences: List[str], wt_sequence: Optional[str] = None
+        self, sequences: List[str], wt_sequence: Optional[str] = None, batch_size: Optional[int] = None
     ) -> List[float]:
         """Given a list of sequences, produce the log-probability estimates for each sequence.
         If the wild type sequence is passed in, returned values are the log-ratio between the mutated and wild type sequence probability
@@ -111,41 +118,32 @@ class ProbabilitySequenceFitnessModel(SequenceFitnessModel):
         Args:
             sequences (List[str]): list of sequences to predict probabilities for
             wt_sequence (Union[str, None], optional): wild-type sequence to compute probabilities relative to. Defaults to None.
+            batch_size (Union[int, None], optional): batch size to use when predicting probabilities. Defaults to None, meaning a single batch of all data.
 
         Returns:
             List[float]: list of predicted log-probabilities for each sequence
         """
 
 
-class ProteinLanguageModel(ProbabilitySequenceFitnessModel):
+class ProteinLanguageModel(ProbabilitySequenceFitnessModel, torch.nn.Module):
     """
     Base class for all protein language models
     """
 
     def __init__(
         self,
-        eval_mode: bool = True,
-        nogpu: bool = False,
-        batch_size: int = 1,
+        device:str = "cpu",
         **kwargs,
     ):
         """Initializes ProteinLanguageModel Class
-
-        Args:
-            eval_mode (bool, optional): Whether to compute gradients when running inference. Defaults to True, so no gradients are computed.
-            nogpu (bool, optional): Whether to run model on a gpu. Defaults to False.
-            batch_size (int, optional): Size of batch to use when running model. Defaults to 1.
-            last_layer_name (Union[str, None], optional): Name of final embeding layer in model (e.g. before a classification head).
-            Defaults to None. This is used in the get_embeddings function
         """
-        super().__init__(**kwargs)
-        self.eval_mode = eval_mode
-        self.nogpu = nogpu
-        self.batch_size = batch_size
-
+        torch.nn.Module.__init__(self)
+        ProbabilitySequenceFitnessModel.__init__(self, **kwargs)
+        self.device = device 
+        
     @abstractmethod
     def predict_position_logprobs(
-        self, sequences: List[str], wt_sequence: Optional[str] = None
+        self, sequences: List[str], wt_sequence: Optional[str] = None, batch_size: Optional[int] = None
     ) -> List[np.ndarray]:
         """
         Predicts the per-position log probabilities for a given list of sequences.
@@ -153,18 +151,22 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel):
         Args:
             sequences (List[str]): The list of sequences for which to predict the position log probabilities.
             wt_sequence (Union[str, None], optional): The wild-type sequence to compare against. Defaults to None.
+            batch_size (Union[int, None], optional): The batch size to use when predicting fitness values. Defaults to None, meaning a single batch of all data.
         Returns:
             fitnesses (List[np.ndarray]): A list of numpy arrays representing the position log probabilities for each sequence.
                 Each ndarray is shape (seq_len, vocab_size)
         """
-    
+
     @abstractmethod
-    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]) -> dict[int,torch.Tensor]:
+    def get_embeddings(
+        self, sequences: List[str], layers: List[int] = [-1], batch_size: Optional[int] = None
+    ) -> dict[int, torch.Tensor]:
         """Returns embeddings for the given sequences at the given layers.
 
         Args:
             sequences (Union[List[str], torch.Tensor]): list of sequences to get embeddings for
             layer (List[int], optional): Name of layers to get embeddings for. Defaults to -1.
+            batch_size (Union[int, None], optional): The batch size to use when computing embeddings. Defaults to None, meaning a single batch of all data.
 
         Returns:
             dict[int,torch.Tensor]: dictionary of layer indexes and their corresponding embeddings
@@ -180,6 +182,7 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel):
         Returns:
             List[int]: dimension of the embeddings
         """
+
 
 class AlignmentModel(SequenceFitnessModel):
     """

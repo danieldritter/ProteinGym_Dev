@@ -1,3 +1,4 @@
 _target_: proteingym.models.esm_model.ESMModel
 scoring_strategy: "masked-marginals"
 scoring_window: "optimal"
+device: "cuda:0"
