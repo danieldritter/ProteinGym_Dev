@@ -16,7 +16,7 @@ def main(config: DictConfig):
     ref_df = pd.read_csv(config.reference_file)
     mut_file = config.data_folder + os.sep + ref_df["DMS_filename"][config.experiment_index]
     mutations = get_mutations(mut_file, str(ref_df["target_seq"][config.experiment_index]))
-    model = hydra.utils.instantiate(config.supervised_setup.model)
+    model = hydra.utils.instantiate(config.supervised_setup.supervised_model)
     dataset = MutationDataset.from_df(mutations)
     train_dataset, validation_dataset, test_dataset = dataset.train_val_test_split(split_type=config.supervised_setup["mutation_split_type"])
     train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=config.supervised_setup["train_batch_size"], shuffle=config.supervised_setup["train_shuffle"])

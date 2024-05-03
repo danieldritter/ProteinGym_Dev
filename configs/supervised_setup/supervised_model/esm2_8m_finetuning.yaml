@@ -16,8 +16,6 @@ scheduler_base:
 scheduler_settings:
   monitor: val_loss
   strict: True
-model: 
-  eval_mode: False
 defaults:
   - /model: esm2_8m
   - _self_

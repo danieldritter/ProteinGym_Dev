@@ -26,7 +26,10 @@ class ESMModel(ProteinLanguageModel):
         self.scoring_strategy = scoring_strategy
         self.scoring_window = scoring_window
         self.model_window = 1024
-        self.model.to(self.device)
+    
+    @property 
+    def base_model(self):
+        return self.model
 
     def predict_logprobs(
         self, sequences: List[str], wt_sequence: Union[str, None] = None,
@@ -272,13 +275,16 @@ class ESMModel(ProteinLanguageModel):
             scores.append(score)
         return scores
 
-    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]) -> dict[int,torch.Tensor]:
+    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1], batch_size: Optional[int] = None) -> dict[int,torch.Tensor]:
         output_reps = None
         # converting negative integers to positives since esm codebase only takes positive integers for repr_layers
         pos_layers = [val if val >= 0 else len(self.model.layers) + val for val in layers]   
-        for i in range(len(sequences)//self.batch_size):
-            batch_seqs = sequences[i*self.batch_size:min((i+1)*self.batch_size,len(sequences))]
+        if batch_size is None:
+            batch_size = len(sequences)
+        for i in range(len(sequences)//batch_size):
+            batch_seqs = sequences[i*batch_size:min((i+1)*batch_size,len(sequences))]
             _, _, batch_tokens = self.batch_converter([("protein{i}", seq) for i,seq in enumerate(batch_seqs)])
+            batch_tokens = batch_tokens.to(self.model.embed_tokens.weight.device)
             output = self.model(batch_tokens,repr_layers=pos_layers)
             if output_reps is None:
                 output_reps = output["representations"]
@@ -298,3 +304,19 @@ class ESMModel(ProteinLanguageModel):
     def get_embed_dim(self, layers: List[int] = [-1]) -> List[int]:
         # embedding dimension is same at every layer so just return that value multiple times
         return [self.model.embed_dim for i in range(len(layers))]
+
+    def set_trainable_layers(self, layers: List[int] = [-1]):
+        # set all parameters to requires_grad = False first 
+        self.model.requires_grad_(False)
+        # Layer 0 is embedding matrix 
+        if 0 in layers:
+            self.model.embed_tokens.requires_grad_(True) 
+        for i, layer in enumerate(self.model.layers): 
+            if i+1 in layers:
+                layer.requires_grad_(True)
+            else:
+                layer.requires_grad_(False)
+            # Including final layer norm if last layer is trainable 
+            if i == len(self.model.layers)-1:
+                self.model.emb_layer_norm_after.requires_grad_(True)
+        

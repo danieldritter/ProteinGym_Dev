@@ -4,7 +4,7 @@ Generic model classes
 
 import json
 import warnings
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from typing import Callable, List, Optional, Union
 
 import numpy as np
@@ -132,14 +132,17 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel, torch.nn.Module):
 
     def __init__(
         self,
-        device:str = "cpu",
         **kwargs,
     ):
         """Initializes ProteinLanguageModel Class
         """
         torch.nn.Module.__init__(self)
         ProbabilitySequenceFitnessModel.__init__(self, **kwargs)
-        self.device = device 
+    
+    @property
+    @abstractmethod
+    def base_model(self) -> torch.nn.Module:
+        """Returns the underlying model"""
         
     @abstractmethod
     def predict_position_logprobs(
@@ -182,6 +185,16 @@ class ProteinLanguageModel(ProbabilitySequenceFitnessModel, torch.nn.Module):
         Returns:
             List[int]: dimension of the embeddings
         """
+    
+    @abstractmethod 
+    def set_trainable_layers(self, layers: List[int] = [-1]):
+        """Sets the specified layers to be trainable in the model
+        
+        Args:
+            layers (List[int], optional): index of layers to set as trainable for. Defaults to -1, last layer.    
+        """
+        pass 
+
 
 
 class AlignmentModel(SequenceFitnessModel):
