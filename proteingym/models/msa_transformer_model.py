@@ -1,7 +1,7 @@
 import itertools
 import os
 import random
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional, Dict
 
 import numpy as np
 import torch
@@ -183,8 +183,48 @@ class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
     ) -> List[np.ndarray]:
         pass
 
-    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1]):
-        pass
+    def get_embeddings(self, sequences: List[str], layers: List[int] = [-1], batch_size: Optional[int] = None) -> Dict[int,torch.Tensor]:
+        output_reps = None
+        # converting negative integers to positives since esm codebase only takes positive integers for repr_layers
+        pos_layers = [val if val >= 0 else len(self.model.layers) + val for val in layers]   
+        if batch_size is None:
+            batch_size = len(sequences)
+        for i in range(len(sequences)//batch_size):
+            batch_seqs = sequences[i*batch_size:min((i+1)*batch_size,len(sequences))]
+            batch_seqs_with_msa = [(f"protein{i}", seq) for i,seq in enumerate(batch_seqs)] + self.processed_msa
+            _, _, batch_tokens = self.batch_converter([batch_seqs_with_msa])
+            batch_tokens = batch_tokens.to(self.model.embed_tokens.weight.device)
+            output = self.model(batch_tokens,repr_layers=pos_layers)
+            if output_reps is None:
+                output_reps = output["representations"]
+            else:
+                output_reps = {key: torch.cat((val,output["representations"][key]),dim=0) for key,val in output_reps.items()}
+        if output_reps is not None:
+            # Converting layer indices back to those passed in
+            output_reps = {layers[i]:output_reps[pos_layers[i]].type(torch.float32) for i in range(len(pos_layers))}
+        else:
+            raise ValueError("Could not get embeddings for given layers")
+        return output_reps
 
-    def get_embed_dim(self, layers: List[int] = [-1]):
-        pass 
+    def get_embed_dim(self, layers: List[int] = [-1]) -> List[int]:
+        # embedding dimension is same at every layer so just return that value multiple times
+        return [self.model.args.embed_dim for i in range(len(layers))]
+
+    def set_trainable_layers(self, layers: List[int] = [-1]):
+        # set all parameters to requires_grad = False first 
+        self.model.requires_grad_(False)
+        # Layer 0 is embedding matrix 
+        if 0 in layers:
+            self.model.embed_tokens.requires_grad_(True) 
+            self.model.embed_positions.requires_grad_(True)
+        # an extra layer norm post embedding that we include with the first layer
+        if 1 in layers:
+            self.model.emb_layer_norm_before.requires_grad_(True)
+        for i, layer in enumerate(self.model.layers): 
+            if i+1 in layers:
+                layer.requires_grad_(True)
+            else:
+                layer.requires_grad_(False)
+            # Including final layer norm if last layer is trainable 
+            if i == len(self.model.layers)-1:
+                self.model.emb_layer_norm_after.requires_grad_(True)

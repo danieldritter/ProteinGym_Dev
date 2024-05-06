@@ -297,7 +297,6 @@ class ESMModel(ProteinLanguageModel):
             raise ValueError("Could not get embeddings for given layers")
         return output_reps
 
-
     def predict_position_logprobs(self, sequences: List[str]) -> List[np.ndarray]:
         raise NotImplementedError
 
