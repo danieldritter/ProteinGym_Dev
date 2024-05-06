@@ -1,9 +1,0 @@
-trainer:
-  _target_: lightning.Trainer
-  max_epochs: 100
-mutation_split_type: "random"
-train_shuffle: True 
-train_batch_size: 32 
-eval_batch_size: 32
-defaults: 
-  - supervised_model: esm2_8m_finetuning

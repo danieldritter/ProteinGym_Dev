@@ -18,7 +18,6 @@ class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
 
     def __init__(
         self,
-        random_seed: int = 0,
         num_msa_samples: int = 400,
         sampling_strategy: str = "random",
         **kwargs
@@ -31,8 +30,11 @@ class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
             self.model_checkpoint
         )
         self.batch_converter = self.alphabet.get_batch_converter()
-        self.random_seed = random_seed
         self.processed_msa = self.read_msa(self.num_msa_samples, self.sampling_strategy)
+    
+    @property
+    def base_model(self):
+        return self.model
 
     def read_msa(self, nseqs: int, sampling_strategy: str) -> List[Tuple[str, str]]:
         """
@@ -47,7 +49,6 @@ class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
         # TODO: Can probably optimize this to avoid making copies of lots of sequences from msa
 
         msa = []
-        random.seed(self.random_seed)
         if sampling_strategy not in ["random", "first_x_rows", "sequence-reweighting"]:
             raise ValueError(
                 "sampling_strategy must be one of ['random', 'first_x_rows', 'sequence-reweighting']"
@@ -196,9 +197,9 @@ class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
             batch_tokens = batch_tokens.to(self.model.embed_tokens.weight.device)
             output = self.model(batch_tokens,repr_layers=pos_layers)
             if output_reps is None:
-                output_reps = output["representations"]
+                output_reps = {key: val[0,-batch_size:] for key,val in output["representations"].items()}
             else:
-                output_reps = {key: torch.cat((val,output["representations"][key]),dim=0) for key,val in output_reps.items()}
+                output_reps = {key: torch.cat((val,output["representations"][key][0,-batch_size:]),dim=0) for key,val in output_reps.items()}
         if output_reps is not None:
             # Converting layer indices back to those passed in
             output_reps = {layers[i]:output_reps[pos_layers[i]].type(torch.float32) for i in range(len(pos_layers))}

@@ -1,5 +1,3 @@
 _target_: proteingym.models.msa_transformer_model.MSATransformerModel
-model_checkpoint: "/home/daniel/proteingym_models/MSA_Transformer/esm_msa1b_t12_100M_UR50S.pt"
+model_checkpoint: "/n/groups/marks/projects/marks_lab_and_oatml/protein_transformer/baseline_models/MSA_transformer/esm_msa1b_t12_100M_UR50S.pt"
 sampling_strategy: "sequence-reweighting"
-random_seed: 0
-nogpu: true

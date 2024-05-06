@@ -1,0 +1,21 @@
+_target_: proteingym.wrappers.supervised_models.PLMFinetunedModel
+output_dim: 1
+embedding_layers: [-1]
+loss_func:
+  _target_: torch.nn.MSELoss
+optimizer_base: 
+  _target_: torch.optim.Adam
+  _partial_: True
+  lr: 1e-3
+scheduler_base:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  mode: min
+  patience: 10
+  factor: 0.5
+  _partial_: True
+scheduler_settings:
+  monitor: val_loss
+  strict: True
+defaults:
+  - /model: msa_transformer
+  - _self_

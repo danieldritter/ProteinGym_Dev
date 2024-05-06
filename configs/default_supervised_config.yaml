@@ -4,8 +4,15 @@ weights_folder: "../example_data/msa_weights"
 reference_file: "../example_data/DMS_substitutions.csv"
 experiment_index: 20
 random_seed: 74
-defaults:
-  - supervised_setup: default_supervised_setup
+trainer:
+  _target_: lightning.Trainer
+  max_epochs: 100
+mutation_split_type: "random"
+train_shuffle: True 
+train_batch_size: 32 
+eval_batch_size: 32
+defaults: 
+  - supervised_model: msa_transformer_finetuning
   - alignment: default_alignment
   - _self_
 
