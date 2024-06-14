@@ -38,43 +38,6 @@ class SequenceFitnessModel(ABC):
                 stacklevel=2,
             )
 
-    @classmethod
-    def register(cls, model_type: str) -> Callable:
-        """This function is used as a decorator on subclasses to automatically add them to a global registry
-
-        Args:
-            model_name (str): name to use for the model in the model registry.
-
-        Returns:
-            inner_decorator (function): decorator function that adds a model name to the class registry dict
-        """
-
-        def inner_decorator(constructor):
-            cls._available_models[model_type] = constructor
-            return constructor
-
-        return inner_decorator
-
-    # TODO: the typing package has a Self option as of python 3.11. Leaving it out for now since I've been using 3.9, but may want to update in the future for this and register function
-    @classmethod
-    def get_model(cls, model_name: str) -> Callable:
-        """This function retrieves a model constructor from the model registry given its name.
-
-        Args:
-            model_name (str): the name used to register the model (defined with the register decorator on the model class)
-
-        Raises:
-            ValueError: if the model is not found in the registry
-
-        Returns:
-            SequenceFitnessModel: class constructor for the model with model_name in the registry
-        """
-        if model_name not in cls._available_models:
-            raise ValueError(
-                f"Model {model_name} not found. Available models: {list(cls._available_models.keys())}"
-            )
-        return cls._available_models[model_name]
-
     @abstractmethod
     def predict_fitnesses(
         self,

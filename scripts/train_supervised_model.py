@@ -36,7 +36,7 @@ def main(config: DictConfig):
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=config["eval_batch_size"], shuffle=False)
     val_dataloader = torch.utils.data.DataLoader(validation_dataset, batch_size=config["eval_batch_size"], shuffle=False)
     logger = L.pytorch.loggers.CSVLogger(save_dir=output_dir, name="")
-    trainer = hydra.utils.instantiate(config.trainer, logger=logger)
+    trainer = L.Trainer(**config.trainer, logger=logger)
     trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
     trainer.test(model, test_dataloader)
 

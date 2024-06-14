@@ -1,4 +1,4 @@
-model_checkpoint: "/home/daniel/proteingym_models/ESM2/esm2_t6_8M_UR50D.pt"
+model_checkpoint: "/n/groups/marks/projects/marks_lab_and_oatml/ProteinGym/baseline_models/ESM2/esm2_t6_8M_UR50D.pt"
 defaults:
   - esm_default
   - _self_

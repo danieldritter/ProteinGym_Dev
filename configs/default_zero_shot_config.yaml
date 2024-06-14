@@ -5,6 +5,7 @@ reference_file: "../example_data/DMS_substitutions.csv"
 experiment_index: 20
 random_seed: 87
 batch_size: 8
+device: "cuda:0"
 defaults:
   - model: esm2_8m
   - alignment: default_alignment

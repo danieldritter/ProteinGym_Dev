@@ -106,7 +106,7 @@ class PLMFinetunedModel(SupervisedModel):
         )
 
     def forward(self, x):
-        embeddings = self.model.get_embeddings(x)
+        embeddings = self.model.get_embeddings(x,layers=self.embedding_layers)
         concat_embeddings = torch.cat(
             [embeddings[layer] for layer in self.embedding_layers], dim=2
         )  # resulting shape is (num_seqs, L, self.embed_dim)

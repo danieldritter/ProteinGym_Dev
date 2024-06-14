@@ -9,7 +9,6 @@ from proteingym.models.model_repos import tranception
 from proteingym.wrappers.generic_models import ProteinLanguageModel
 
 
-@ProteinLanguageModel.register("tranception")
 class TranceptionModel(ProteinLanguageModel):
 
     def __init__(

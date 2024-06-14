@@ -12,7 +12,6 @@ import warnings
 from omegaconf import DictConfig, OmegaConf,open_dict
 import hydra
 from proteingym.utils.scoring_utils import get_mutations
-from proteingym.wrappers.generic_models import SequenceFitnessModel, AlignmentModel
 
 @hydra.main(version_base=None, config_path=f"{os.path.dirname(os.path.dirname(__file__))}/configs", config_name="default_zero_shot_config")
 def main(config: DictConfig):
@@ -33,6 +32,7 @@ def main(config: DictConfig):
         model = hydra.utils.instantiate(config.model, alignment_kwargs=config.alignment)
     else:
         model = hydra.utils.instantiate(config.model)
+    model = model.to(config.device)
     logprobs = model.predict_fitnesses(
         mutations["mutated_sequence"].values.tolist(),
         ref_df["target_seq"][config.experiment_index],

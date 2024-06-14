@@ -13,7 +13,6 @@ from proteingym.wrappers.generic_models import (AlignmentModel,
                                                 ProteinLanguageModel)
 
 
-@AlignmentModel.register("msa_transformer")
 class MSATransformerModel(AlignmentModel, ProteinLanguageModel):
 
     def __init__(

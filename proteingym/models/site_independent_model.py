@@ -9,7 +9,6 @@ from proteingym.constants.data import AA_INTEGER_MAP
 from proteingym.wrappers.generic_models import AlignmentProbabilityModel
 
 
-@AlignmentProbabilityModel.register("site_independent")
 class SiteIndependentModel(AlignmentProbabilityModel):
     """
     Site independent columnwise probability alignment model

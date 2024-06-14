@@ -10,7 +10,6 @@ from proteingym.utils.scoring_utils import get_optimal_window
 from proteingym.wrappers.generic_models import ProteinLanguageModel
 
 
-@ProteinLanguageModel.register("esm")
 class ESMModel(ProteinLanguageModel):
     def __init__(
         self,
@@ -26,6 +25,7 @@ class ESMModel(ProteinLanguageModel):
         self.scoring_strategy = scoring_strategy
         self.scoring_window = scoring_window
         self.model_window = 1024
+        self.input_device = self.model.embed_tokens.weight.device
     
     @property 
     def base_model(self):
@@ -47,7 +47,8 @@ class ESMModel(ProteinLanguageModel):
             ("protein1", wt_sequence),
         ]
         _, _, batch_tokens = self.batch_converter(data)
-        batch_tokens = batch_tokens.to(self.device)
+        batch_tokens = batch_tokens.to(self.base_model.embed_tokens.weight.device)
+        # batch_tokens = batch_tokens.to(self.device)
         if self.scoring_strategy == "wt-marginals":
             token_probs = self.wt_marginals(batch_tokens)
             scores = self.apply_wt_probabilities(sequences, wt_sequence, token_probs)
@@ -99,7 +100,7 @@ class ESMModel(ProteinLanguageModel):
                         self.model(
                             batch_tokens[
                                 :, start_left_window : end_left_window + 1
-                            ].cuda()
+                            ]
                         )["logits"],
                         dim=-1,
                     )
@@ -201,7 +202,7 @@ class ESMModel(ProteinLanguageModel):
                 start = 0
             with torch.no_grad():
                 token_probs = torch.log_softmax(
-                    self.model(batch_tokens_masked.cuda())["logits"], dim=-1
+                    self.model(batch_tokens_masked)["logits"], dim=-1
                 )
             all_token_probs.append(token_probs[:, i - start])  # vocab size
         token_probs = torch.cat(all_token_probs, dim=0).unsqueeze(0)
@@ -227,7 +228,7 @@ class ESMModel(ProteinLanguageModel):
             batch_converter = self.alphabet.get_batch_converter()
 
             _, _, batch_tokens = batch_converter(data)
-
+            batch_tokens = batch_tokens.to(self.base_model.embed_tokens.weight.device)
             # compute probabilities at each position
             log_probs = []
             for i in range(1, len(sequence) - 1):
@@ -278,13 +279,14 @@ class ESMModel(ProteinLanguageModel):
     def get_embeddings(self, sequences: List[str], layers: List[int] = [-1], batch_size: Optional[int] = None) -> dict[int,torch.Tensor]:
         output_reps = None
         # converting negative integers to positives since esm codebase only takes positive integers for repr_layers
-        pos_layers = [val if val >= 0 else len(self.model.layers) + val for val in layers]   
+        pos_layers = [val if val >= 0 else len(self.model.layers) + val + 1 for val in layers]   
         if batch_size is None:
             batch_size = len(sequences)
         for i in range(len(sequences)//batch_size):
             batch_seqs = sequences[i*batch_size:min((i+1)*batch_size,len(sequences))]
             _, _, batch_tokens = self.batch_converter([("protein{i}", seq) for i,seq in enumerate(batch_seqs)])
             batch_tokens = batch_tokens.to(self.model.embed_tokens.weight.device)
+            
             output = self.model(batch_tokens,repr_layers=pos_layers)
             if output_reps is None:
                 output_reps = output["representations"]
@@ -310,12 +312,13 @@ class ESMModel(ProteinLanguageModel):
         # Layer 0 is embedding matrix 
         if 0 in layers:
             self.model.embed_tokens.requires_grad_(True) 
+        pos_layers = [val if val >= 0 else len(self.model.layers) + val + 1 for val in layers]
         for i, layer in enumerate(self.model.layers): 
-            if i+1 in layers:
+            if i+1 in pos_layers:
                 layer.requires_grad_(True)
             else:
                 layer.requires_grad_(False)
             # Including final layer norm if last layer is trainable 
-            if i == len(self.model.layers)-1:
+            if i == len(self.model.layers)-1 and i+1 in pos_layers:
                 self.model.emb_layer_norm_after.requires_grad_(True)
         

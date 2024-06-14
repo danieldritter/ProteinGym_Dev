@@ -1,3 +1,8 @@
+defaults: 
+  # - supervised_model: msa_transformer_finetuning
+  - supervised_model: esm2_8m_finetuning
+  - alignment: default_alignment
+  - _self_
 data_folder: "../example_data/mutations"
 alignment_folder: "../example_data/msas"
 weights_folder: "../example_data/msa_weights"
@@ -5,15 +10,11 @@ reference_file: "../example_data/DMS_substitutions.csv"
 experiment_index: 20
 random_seed: 74
 trainer:
-  _target_: lightning.Trainer
   max_epochs: 100
+  devices: 1
 mutation_split_type: "random"
 train_shuffle: True 
 train_batch_size: 32 
 eval_batch_size: 32
-defaults: 
-  - supervised_model: msa_transformer_finetuning
-  - alignment: default_alignment
-  - _self_
 
 
