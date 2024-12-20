@@ -1,24 +1,26 @@
-from typing import List, Union
+"""Ensemble models combining multiple fitness models."""
+
+from __future__ import annotations
 
 import numpy as np
 
-from ..utils.alignment import Alignment
-from .generic_models import AlignmentModel, SequenceFitnessModel
+from .generic_models import SequenceFitnessModel
 
 
 class SequenceFitnessModelEnsemble:
-    """
-    This class represents an naive ensemble of sequence fitness models. It scores a list of sequences on each model
+    """Represents an naive ensemble of sequence fitness models.
+
+    It scores a list of sequences on each model
     and then averages the scores together to produce the final fitness value.
 
-    TODOs: Add option to run each model iteratively, store scores, and then combine, for larger models where holding
-    all of them in memory is costly/inefficient
+    TODOs: Add option to run each model iteratively, store scores, and then combine,
+    for larger models where holding all of them in memory is costly/inefficient
     """
 
     def __init__(
         self,
-        model_configs: List[dict],
-        model_names: Union[List[str], None] = None,
+        model_configs: list[dict],
+        model_names: list[str] | None = None,
     ):
         self.model_configs = model_configs
         self.models = []
@@ -27,7 +29,7 @@ class SequenceFitnessModelEnsemble:
             self.models.append(model_constructor(**config))
         if model_names is not None:
             assert len(model_names) == len(
-                self.models
+                self.models,
             ), "Must supply same number of model names as models in ensemble"
             self.model_names = model_names
             print(f"Naive Ensemble of {len(self.models)} models: {self.model_names}")
@@ -47,6 +49,7 @@ class SequenceFitnessModelEnsemble:
 
         Returns:
             List[float]: List of predicted fitnesses
+
         """
         all_fitnesses = []
         for i, model in enumerate(self.models):

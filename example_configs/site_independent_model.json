@@ -1,5 +1,0 @@
-{
-    "model_type": "site_independent",
-    "alignment_config_file":"../example_configs/alignment_configs/default_config.json",
-    "pseudocount": 1
-}

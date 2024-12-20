@@ -1,8 +1,0 @@
-{
-    "model_type": "tranception",
-    "model_checkpoint": "/home/danieldritter/proteingym_models/Tranception_Small",
-    "tranception_config": "/home/danieldritter/proteingym_models/Tranception_Small/config.json",
-    "batch_size": 64,
-    "tokenizer_file": "../proteingym/models/model_repos/tranception/utils/tokenizers/Basic_tokenizer",
-    "nogpu": false
-}

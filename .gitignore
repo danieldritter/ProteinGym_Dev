@@ -4,3 +4,5 @@ __pycache__
 build
 proteingym.egg-info
 outputs/
+dist/
+multirun/

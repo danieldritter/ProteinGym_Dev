@@ -1,13 +1,16 @@
-data_folder: "../example_data/mutations"
-alignment_folder: "../example_data/msas"
-weights_folder: "../example_data/msa_weights"
-reference_file: "../example_data/DMS_substitutions.csv"
+data_folder: "./example_data/mutations"
+alignment_folder: "./example_data/msas"
+weights_folder: "./example_data/msa_weights"
+reference_file: "./example_data/DMS_substitutions.csv"
 experiment_index: 20
 random_seed: 87
 batch_size: 8
-device: "cuda:0"
+device: "cpu"
 defaults:
-  - model: esm2_8m
+  - model: esm2_8m_local
   - alignment: default_alignment
   - _self_
-
+hydra:
+  sweeper:
+    params:
+      experiment_index: 1,2,3,4,5

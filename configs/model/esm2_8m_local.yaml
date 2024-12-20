@@ -1,0 +1,4 @@
+model_checkpoint: "/Users/ddr49/model_checkpoints/esm2_t6_8M_UR50D.pt"
+defaults:
+  - esm_default
+  - _self_

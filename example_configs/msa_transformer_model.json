@@ -1,8 +1,0 @@
-{
-   "model_type": "msa_transformer",
-   "model_checkpoint": "/home/daniel/proteingym_models/MSA_Transformer/esm_msa1b_t12_100M_UR50S.pt",
-   "sampling_strategy": "sequence-reweighting",
-   "random_seed":0,
-   "alignment_config_file": "../example_configs/alignment_configs/default_config.json",
-   "nogpu":true
-}

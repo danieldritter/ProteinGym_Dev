@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "proteingym"
+dynamic = ["version"]
+description = "ProteinGym: Large-Scale Benchmarks for Protein Design and Fitness Prediction"
+readme = "README.md"
+license = "MIT"
+
+[tool.hatch.version]
+path = "proteingym/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/proteingym",
+]
+
+[tool.ruff.lint]
+ignore = ["TD003", "FIX002", "FBT001", "FBT002","G004"]
